@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>栋梁之观 - 中国古代建筑成就信息可视化</title>
+    {% load static %}
+    <!-- ECharts 核心库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- 中国地图注册（使用稳定版本） -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/js/china.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #f5f0e8 0%, #e8dfd1 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* 头部样式 */
+        header {
+            text-align: center;
+            padding: 45px 30px;
+            background: linear-gradient(135deg, #6b3e1c, #4a2a10);
+            border-radius: 40px;
+            margin-bottom: 35px;
+            color: #f5e6c8;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: "🏛️🏗️⚒️";
+            position: absolute;
+            font-size: 100px;
+            opacity: 0.08;
+            right: 20px;
+            bottom: -20px;
+            white-space: nowrap;
+        }
+        h1 { font-size: 2.8rem; letter-spacing: 6px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .subtitle { font-size: 1rem; opacity: 0.9; margin-top: 8px; }
+        
+        /* 统计卡片 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+        .stat-card {
+            background: white;
+            padding: 25px 15px;
+            text-align: center;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            border-bottom: 4px solid #c9772e;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.12);
+            border-bottom-color: #8b5a2b;
+        }
+        .stat-number { font-size: 2.4rem; font-weight: bold; color: #c9772e; line-height: 1.2; }
+        .stat-label { color: #7e6b4e; margin-top: 10px; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        
+        /* 卡片通用样式 */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 28px;
+            padding: 22px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(139, 90, 43, 0.12);
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.12);
+            background: rgba(255, 255, 255, 0.98);
+        }
+        .card h3 {
+            color: #6b3e1c;
+            border-left: 5px solid #c9772e;
+            padding-left: 16px;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        /* 图表网格 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 28px;
+        }
+        .full-width { grid-column: span 2; }
+        .chart { width: 100%; height: 380px; }
+        .map-chart { width: 100%; height: 520px; }
+        
+        /* 提示文字 */
+        .hint {
+            text-align: center;
+            color: #b8a88a;
+            font-size: 0.7rem;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed #e0d5c4;
+        }
+        
+        /* 页脚 */
+        footer {
+            text-align: center;
+            padding: 30px 25px;
+            background: #2c2418;
+            border-radius: 28px;
+            color: #d4c5a9;
+            font-size: 0.85rem;
+            margin-top: 20px;
+        }
+        footer p { margin: 6px 0; }
+        footer p:first-child { color: #e8c49a; font-weight: 500; }
+        
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .stats { gap: 15px; }
+            .stat-number { font-size: 1.8rem; }
+            .stat-label { font-size: 0.75rem; }
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .full-width { grid-column: span 1; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.8rem; letter-spacing: 3px; }
+            header { padding: 30px 20px; }
+            .card { padding: 16px; }
+            .chart { height: 300px; }
+            .map-chart { height: 400px; }
+            body { padding: 12px; }
+        }
+        @media (max-width: 480px) {
+            .stats { grid-template-columns: 1fr; gap: 12px; }
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e8dfd1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #c9772e; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5a2b; }
+        ::selection { background: rgba(201, 119, 46, 0.3); color: #6b3e1c; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 头部 -->
+    <header>
+        <h1>🏛️ 栋梁之观</h1>
+        <div class="subtitle">中国古代建筑成就信息可视化 · 民居 · 官府 · 皇宫 · 桥梁</div>
+        <div style="font-size:0.8rem; margin-top:12px; opacity:0.8;">不含庙宇、宝塔 · 1911年前</div>
+    </header>
+
+    <!-- 统计卡片 -->
+    <div class="stats" id="stats">
+        <div class="stat-card"><div class="stat-number" id="totalCount">--</div><div class="stat-label">📋 建筑总数</div></div>
+        <div class="stat-card"><div class="stat-number" id="typeCount">--</div><div class="stat-label">🏗️ 建筑类型</div></div>
+        <div class="stat-card"><div class="stat-number" id="eraCount">--</div><div class="stat-label">📅 跨越朝代</div></div>
+        <div class="stat-card"><div class="stat-number" id="cityCount">--</div><div class="stat-label">📍 覆盖城市</div></div>
+    </div>
+
+    <!-- 中国地图 -->
+    <div class="card">
+        <h3>🗺️ 中国古代建筑地理分布</h3>
+        <div id="chinaMap" class="map-chart"></div>
+        <div class="hint">💡 可拖拽缩放地图 | 颜色越深代表该地区建筑数量越多 | 鼠标悬停查看详情</div>
+    </div>
+
+    <!-- 其他图表网格 -->
+    <div class="grid">
+        <div class="card">
+            <h3>📊 建筑类型比例</h3>
+            <div id="pieChart" class="chart"></div>
+        </div>
+        <div class="card">
+            <h3>📈 年代演变趋势</h3>
+            <div id="lineChart" class="chart"></div>
+        </div>
+        <div class="card full-width">
+            <h3>📏 建筑高度 Top 10</h3>
+            <div id="barChart" class="chart"></div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer>
+        <p>🏛️ 数据来源：全国重点文物保护单位名录 · 《中国古代建筑史》文献整理</p>
+        <p>🎨 作品类别：信息可视化设计 · 数据可视化 · 主题：中国古代建筑成就</p>
+        <p>📅 校内选拔赛作品 · 不含庙宇、宝塔</p>
+    </footer>
+</div>
+
+<script>
+    console.log('🚀 页面加载完成，开始请求数据...');
+    
+    fetch('/api/chart-data/')
+        .then(response => {
+            console.log('📡 API响应状态:', response.status);
+            if (!response.ok) throw new Error('HTTP错误: ' + response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('✅ 收到数据:', data);
+            
+            // 更新统计卡片
+            const total = data.type_data.reduce((s, i) => s + i.value, 0);
+            document.getElementById('totalCount').innerText = total;
+            document.getElementById('typeCount').innerText = data.type_data.length;
+            document.getElementById('eraCount').innerText = data.era_labels.length;
+            document.getElementById('cityCount').innerText = data.map_data.length;
+            
+            // ========== 1. 中国地图 ==========
+            // 城市名称映射到省份
+            const cityToProvince = {
+                '北京': '北京', '天津': '天津', '上海': '上海', '重庆': '重庆',
+                '苏州': '江苏', '南京': '江苏', '无锡': '江苏', '徐州': '江苏', '扬州': '江苏',
+                '石家庄': '河北', '唐山': '河北', '保定': '河北', '秦皇岛': '河北', '正定': '河北',
+                '朔州': '山西', '太原': '山西', '五台': '山西', '晋中': '山西', '大同': '山西',
+                '岳阳': '湖南', '长沙': '湖南', '常德': '湖南', '张家界': '湖南', '衡阳': '湖南',
+                '南昌': '江西', '九江': '江西', '景德镇': '江西', '赣州': '江西',
+                '武汉': '湖北', '宜昌': '湖北', '襄阳': '湖北', '荆州': '湖北', '黄冈': '湖北',
+                '西安': '陕西', '咸阳': '陕西', '宝鸡': '陕西', '延安': '陕西', '汉中': '陕西',
+                '嘉峪关': '甘肃', '兰州': '甘肃', '敦煌': '甘肃', '天水': '甘肃',
+                '成都': '四川', '乐山': '四川', '都江堰': '四川', '宜宾': '四川', '绵阳': '四川',
+                '泉州': '福建', '福州': '福建', '厦门': '福建', '漳州': '福建', '南平': '福建',
+                '潮州': '广东', '广州': '广东', '深圳': '广东', '佛山': '广东', '梅州': '广东', '汕头': '广东',
+                '柳州': '广西', '桂林': '广西', '南宁': '广西', '北海': '广西',
+                '沈阳': '辽宁', '大连': '辽宁', '丹东': '辽宁', '锦州': '辽宁',
+                '拉萨': '西藏', '日喀则': '西藏',
+                '乌鲁木齐': '新疆', '喀什': '新疆', '吐鲁番': '新疆',
+                '昆明': '云南', '大理': '云南', '丽江': '云南', '西双版纳': '云南',
+                '贵阳': '贵州', '遵义': '贵州', '凯里': '贵州',
+                '杭州': '浙江', '宁波': '浙江', '温州': '浙江', '绍兴': '浙江', '嘉兴': '浙江',
+                '济南': '山东', '青岛': '山东', '曲阜': '山东', '泰安': '山东', '烟台': '山东',
+                '郑州': '河南', '洛阳': '河南', '开封': '河南', '安阳': '河南', '南阳': '河南',
+                '合肥': '安徽', '黄山': '安徽', '芜湖': '安徽', '安庆': '安徽',
+                '哈尔滨': '黑龙江', '长春': '吉林', '吉林': '吉林', '延边': '吉林',
+                '呼和浩特': '内蒙古', '包头': '内蒙古', '呼伦贝尔': '内蒙古',
+                '银川': '宁夏', '西宁': '青海', '海口': '海南', '三亚': '海南',
+                '香港': '香港', '澳门': '澳门', '台北': '台湾', '台中': '台湾', '高雄': '台湾'
+            };
+            
+            // 按省份汇总建筑数量
+            const provinceData = {};
+            data.map_data.forEach(city => {
+                let province = cityToProvince[city.name];
+                if (!province) province = city.name;
+                if (provinceData[province]) {
+                    provinceData[province] += city.value;
+                } else {
+                    provinceData[province] = city.value;
+                }
+            });
+            
+            // 转换为地图需要的格式
+            const mapData = Object.keys(provinceData).map(province => ({
+                name: province,
+                value: provinceData[province]
+            }));
+            
+            console.log('🗺️ 地图数据:', mapData);
+            
+            // 计算颜色最大值
+            const maxValue = Math.max(...mapData.map(d => d.value), 5);
+            
+            const chinaMap = echarts.init(document.getElementById('chinaMap'));
+            chinaMap.setOption({
+                tooltip: { 
+                    trigger: 'item', 
+                    formatter: function(params) {
+                        if (params.value) {
+                            return `<strong>${params.name}</strong><br/>🏛️ 建筑数量: ${params.value} 处`;
+                        }
+                        return params.name;
+                    }
+                },
+                visualMap: {
+                    min: 1,
+                    max: maxValue,
+                    left: 'left',
+                    top: 'bottom',
+                    calculable: true,
+                    inRange: { color: ['#f5e6c8', '#e8c49a', '#c9772e', '#8b5a2b', '#6b3e1c'] },
+                    outOfRange: { color: '#e8dfd1' },
+                    textStyle: { color: '#4a3728', fontSize: 10 }
+                },
+                series: [{
+                    name: '古建筑分布',
+                    type: 'map',
+                    map: 'china',
+                    roam: true,
+                    zoom: 1.2,
+                    data: mapData,
+                    label: {
+                        show: true,
+                        fontSize: 10,
+                        color: '#6b3e1c',
+                        formatter: function(params) {
+                            return params.name;
+                        }
+                    },
+                    emphasis: { 
+                        label: { show: true, fontSize: 12, color: '#c9772e', fontWeight: 'bold' },
+                        scale: true
+                    },
+                    itemStyle: {
+                        borderColor: '#d4c5a9',
+                        borderWidth: 0.8,
+                        areaColor: '#e8e0d5'
+                    }
+                }]
+            });
+            
+            // 窗口大小改变时重绘地图
+            window.addEventListener('resize', function() { chinaMap.resize(); });
+            
+            // ========== 2. 饼图 ==========
+            const pieChart = echarts.init(document.getElementById('pieChart'));
+            pieChart.setOption({
+                tooltip: { trigger: 'item', formatter: '{b}: {d}% ({c}座)' },
+                legend: { orient: 'vertical', left: 'left', textStyle: { color: '#4a3728' } },
+                series: [{
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    data: data.type_data,
+                    label: { show: true, formatter: '{b}' },
+                    itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+                    color: ['#c9772e', '#8b5a2b', '#6b3e1c', '#d4a56e']
+                }]
+            });
+            
+            // ========== 3. 折线图 ==========
+            const lineChart = echarts.init(document.getElementById('lineChart'));
+            lineChart.setOption({
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: data.era_labels, name: '朝代', axisLabel: { rotate: 30, fontSize: 11 } },
+                yAxis: { type: 'value', name: '数量', nameLocation: 'middle', nameGap: 40 },
+                series: [{
+                    type: 'line',
+                    data: data.era_counts,
+                    smooth: true,
+                    lineStyle: { width: 3, color: '#c9772e' },
+                    areaStyle: { opacity: 0.3, color: '#c9772e' },
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    itemStyle: { color: '#8b5a2b', borderColor: '#fff', borderWidth: 2 },
+                    label: { show: true, position: 'top', fontSize: 11, color: '#6b3e1c' }
+                }]
+            });
+            
+            // ========== 4. 柱状图 ==========
+            const barChart = echarts.init(document.getElementById('barChart'));
+            barChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                xAxis: { type: 'category', data: data.top10_names, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
+                yAxis: { type: 'value', name: '高度 (米)', nameLocation: 'middle', nameGap: 45 },
+                series: [{
+                    type: 'bar',
+                    data: data.top10_heights,
+                    itemStyle: { 
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: '#c9772e' },
+                            { offset: 1, color: '#8b5a2b' }
+                        ]),
+                        borderRadius: [8, 8, 0, 0]
+                    },
+                    label: { show: true, position: 'top', formatter: '{c} m', fontSize: 11, fontWeight: 'bold' }
+                }]
+            });
+            
+            console.log('🎉 所有图表渲染完成！');
+        })
+        .catch(error => {
+            console.error('❌ 错误:', error);
+            document.body.innerHTML += '<div style="color:red;text-align:center;padding:50px;background:white;margin:20px;border-radius:20px;">❌ 数据加载失败: ' + error.message + '<br>请检查后端服务是否正常运行</div>';
+        });
+</script>
+</body>
+</html>
